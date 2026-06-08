@@ -1,0 +1,57 @@
+{
+  "name": "cogfics-client",
+  "productName": "COG-FICS",
+  "version": "2.0.0",
+  "description": "COG-FICS Fleet Information & Communications System — Client",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "publish": "electron-forge publish"
+  },
+  "config": {
+    "forge": {
+      "packagerConfig": {
+        "asar": true,
+        "icon": "./assets/icon",
+        "appCopyright": "Castra Observations Group",
+        "win32metadata": {
+          "CompanyName": "Castra Observations Group",
+          "FileDescription": "COG-FICS Communications Client",
+          "ProductName": "COG-FICS"
+        }
+      },
+      "makers": [
+        {
+          "name": "@electron-forge/maker-wix",
+          "config": {
+            "language": 1033,
+            "manufacturer": "Castra Observations Group",
+            "appUserModelId": "com.cogfics.client",
+            "shortcutFolderName": "COG-FICS",
+            "programFilesFolderName": "COG-FICS",
+            "upgradeCode": "C0G-F1CS-CL1ENT-2000-000000000002"
+          }
+        },
+        {
+          "name": "@electron-forge/maker-zip",
+          "platforms": ["win32"]
+        }
+      ],
+      "plugins": [
+        {
+          "name": "@electron-forge/plugin-auto-unpack-natives",
+          "config": {}
+        }
+      ]
+    }
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.4.0",
+    "@electron-forge/maker-wix": "^7.4.0",
+    "@electron-forge/maker-zip": "^7.4.0",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.4.0",
+    "electron": "^30.0.0"
+  }
+}

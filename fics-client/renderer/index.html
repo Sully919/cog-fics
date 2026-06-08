@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COG-FICS</title>
+<script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500&display=swap');
+
+  :root {
+    --bg:     #080b0e;
+    --bg2:    #0d1117;
+    --bg3:    #131a22;
+    --panel:  #0f161d;
+    --border: #1c2a36;
+    --bord2:  #243547;
+    --accent: #00c8ff;
+    --green:  #00ff88;
+    --red:    #ff3355;
+    --amber:  #ffaa00;
+    --text:   #c8d8e8;
+    --text2:  #607888;
+    --text3:  #3a5060;
+    --mono:   'Share Tech Mono', monospace;
+    --disp:   'Barlow Condensed', sans-serif;
+    --body:   'Barlow', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html,body { height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family:var(--body); font-size:14px; }
+  ::-webkit-scrollbar { width:4px; height:4px; }
+  ::-webkit-scrollbar-track { background:var(--bg2); }
+  ::-webkit-scrollbar-thumb { background:var(--bord2); }
+
+  .screen { display:none; }
+  .screen.active { display:flex; }
+
+  /* ── CONNECT SCREEN ── */
+  #screen-connect {
+    flex-direction:column; align-items:center; justify-content:center;
+    height:100vh; background:var(--bg); position:relative; overflow:hidden;
+  }
+  #screen-connect::before {
+    content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.12) 2px,rgba(0,0,0,0.12) 4px);
+    pointer-events:none;
+  }
+  .connect-logo { font-family:var(--disp); font-size:72px; font-weight:900; letter-spacing:10px; color:var(--accent); text-shadow:0 0 60px rgba(0,200,255,0.35); margin-bottom:4px; }
+  .connect-tagline { font-family:var(--mono); font-size:11px; color:var(--text2); letter-spacing:5px; text-transform:uppercase; margin-bottom:48px; }
+  .connect-box { background:var(--panel); border:1px solid var(--bord2); padding:32px; width:400px; position:relative; z-index:1; }
+  .connect-box h2 { font-family:var(--disp); font-size:18px; font-weight:700; letter-spacing:3px; color:var(--text); text-transform:uppercase; margin-bottom:24px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+  .field-row { margin-bottom:16px; }
+  .field-label { display:block; font-family:var(--mono); font-size:9px; letter-spacing:2px; color:var(--text2); text-transform:uppercase; margin-bottom:6px; }
+  .field-input { width:100%; background:var(--bg); border:1px solid var(--bord2); color:var(--text); font-family:var(--mono); font-size:13px; padding:9px 12px; outline:none; transition:border 0.2s; }
+  .field-input:focus { border-color:var(--accent); }
+  .field-input::placeholder { color:var(--text3); }
+  .connect-btn { width:100%; margin-top:8px; background:var(--accent); color:var(--bg); font-family:var(--disp); font-size:18px; font-weight:700; letter-spacing:4px; text-transform:uppercase; border:none; padding:12px; cursor:pointer; transition:opacity 0.2s; }
+  .connect-btn:hover { opacity:0.85; }
+  .connect-btn:disabled { opacity:0.4; cursor:not-allowed; }
+  .connect-error { font-family:var(--mono); font-size:11px; color:var(--red); margin-top:10px; text-align:center; min-height:16px; }
+  .saved-servers-label { font-family:var(--mono); font-size:9px; letter-spacing:2px; color:var(--text3); text-transform:uppercase; margin-bottom:8px; }
+  .server-chip { display:inline-flex; align-items:center; gap:8px; background:var(--bg3); border:1px solid var(--border); padding:5px 12px; margin:0 6px 6px 0; cursor:pointer; font-family:var(--mono); font-size:11px; color:var(--text2); transition:all 0.15s; }
+  .server-chip:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* ── TITLEBAR ── */
+  #titlebar { height:34px; background:var(--bg2); border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 12px; flex-shrink:0; -webkit-app-region:drag; user-select:none; }
+  .tb-brand { font-family:var(--disp); font-size:14px; font-weight:700; letter-spacing:3px; color:var(--accent); }
+  .tb-shard { font-family:var(--mono); font-size:10px; color:var(--text2); flex:1; padding:0 12px; }
+  .tb-controls { display:flex; gap:5px; -webkit-app-region:no-drag; }
+  .tb-btn { width:26px; height:20px; background:var(--bg3); border:1px solid var(--border); color:var(--text2); font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
+  .tb-btn:hover { background:var(--bord2); color:var(--text); }
+  .tb-btn.close:hover { background:var(--red); color:white; border-color:var(--red); }
+  .disconnect-btn { font-family:var(--mono); font-size:9px; letter-spacing:1px; text-transform:uppercase; padding:3px 10px; border:1px solid rgba(255,51,85,0.3); background:transparent; color:var(--red); cursor:pointer; -webkit-app-region:no-drag; transition:all 0.15s; margin-right:8px; }
+  .disconnect-btn:hover { background:rgba(255,51,85,0.1); border-color:var(--red); }
+
+  /* ── COMMS LAYOUT ── */
+  #screen-comms { flex-direction:column; height:100vh; }
+  #comms-body { display:flex; flex:1; overflow:hidden; }
+
+  /* ── FLEET SIDEBAR ── */
+  #fleet-sidebar { width:200px; flex-shrink:0; background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow-y:auto; }
+  .fleet-sidebar-section { border-bottom:1px solid var(--border); padding:6px 0; }
+  .fleet-sidebar-label { font-family:var(--mono); font-size:9px; letter-spacing:2px; color:var(--text3); text-transform:uppercase; padding:6px 14px 4px; }
+  .fleet-item { padding:8px 14px; cursor:pointer; color:var(--text2); font-size:13px; display:flex; align-items:center; gap:8px; transition:all 0.15s; border-left:2px solid transparent; }
+  .fleet-item:hover { background:var(--bg3); color:var(--text); }
+  .fleet-item.active { color:var(--accent); border-left-color:var(--accent); background:rgba(0,200,255,0.05); }
+  .net-item { padding:6px 14px 6px 26px; cursor:pointer; color:var(--text2); font-size:12px; display:flex; align-items:center; gap:8px; transition:all 0.15s; border-left:2px solid transparent; }
+  .net-item:hover { background:var(--bg3); color:var(--text); }
+  .net-item.active { color:var(--accent); border-left-color:var(--accent); }
+  .net-lock { font-size:10px; opacity:0.6; }
+  .lobby-item { padding:8px 14px; cursor:pointer; color:var(--text2); font-size:13px; display:flex; align-items:center; gap:8px; transition:all 0.15s; border-left:2px solid transparent; }
+  .lobby-item:hover { background:var(--bg3); color:var(--text); }
+  .lobby-item.active { color:var(--amber); border-left-color:var(--amber); }
+
+  /* ── COMMS MAIN ── */
+  #comms-main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .comms-header { padding:12px 20px; background:var(--bg2); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; flex-shrink:0; }
+  .comms-channel-name { font-family:var(--disp); font-size:20px; font-weight:700; color:var(--text); letter-spacing:2px; }
+  .comms-channel-status { font-family:var(--mono); font-size:10px; color:var(--text2); letter-spacing:1px; }
+
+  /* ── VOICE STATUS BAR ── */
+  #voice-status-bar { padding:6px 20px; background:var(--bg2); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; flex-shrink:0; font-family:var(--mono); font-size:10px; }
+  .voice-dot { width:7px; height:7px; border-radius:50%; background:var(--text3); flex-shrink:0; }
+  .voice-dot.connected { background:var(--green); box-shadow:0 0 6px var(--green); }
+  .voice-dot.connecting { background:var(--amber); }
+  .voice-dot.error { background:var(--red); }
+  #voice-status-text { color:var(--text2); letter-spacing:1px; }
+
+  /* Chat */
+  #chat-log { flex:1; overflow-y:auto; padding:14px 20px; display:flex; flex-direction:column; gap:4px; }
+  .chat-msg { display:flex; gap:10px; padding:4px 0; line-height:1.5; }
+  .chat-ts { font-family:var(--mono); font-size:10px; color:var(--text3); flex-shrink:0; padding-top:2px; }
+  .chat-role-badge { font-family:var(--mono); font-size:9px; letter-spacing:1px; padding:1px 6px; border-radius:2px; border:1px solid; flex-shrink:0; text-transform:uppercase; height:fit-content; margin-top:2px; }
+  .chat-user { font-weight:500; color:var(--text); }
+  .chat-text { color:var(--text2); flex:1; }
+  .chat-system { font-family:var(--mono); font-size:11px; color:var(--text3); font-style:italic; padding:2px 0; }
+
+  /* PTT active bar */
+  .ptt-indicator { display:flex; align-items:center; gap:8px; padding:8px 20px; background:rgba(0,255,136,0.05); border-top:1px solid rgba(0,255,136,0.2); border-bottom:1px solid rgba(0,255,136,0.2); flex-shrink:0; font-family:var(--mono); font-size:12px; color:var(--green); }
+  .ptt-dot { width:8px; height:8px; border-radius:50%; background:var(--green); }
+  @keyframes pttPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.4)} }
+  .ptt-dot.active { animation:pttPulse 0.8s infinite; box-shadow:0 0 10px var(--green); }
+
+  /* Chat input */
+  .chat-input-row { display:flex; gap:0; border-top:1px solid var(--border); flex-shrink:0; background:var(--bg2); }
+  .chat-input { flex:1; background:var(--bg); border:none; border-right:1px solid var(--border); color:var(--text); font-family:var(--body); font-size:13px; padding:12px 16px; outline:none; }
+  .chat-input::placeholder { color:var(--text3); }
+  .chat-send-btn { font-family:var(--mono); font-size:10px; letter-spacing:1px; text-transform:uppercase; padding:12px 20px; background:var(--bg3); border:none; color:var(--text2); cursor:pointer; transition:all 0.15s; }
+  .chat-send-btn:hover { background:var(--bord2); color:var(--accent); }
+
+  /* ── PTT PANEL ── */
+  #ptt-panel { width:200px; flex-shrink:0; background:var(--bg2); border-left:1px solid var(--border); display:flex; flex-direction:column; align-items:center; padding:20px; gap:16px; }
+  #ptt-btn { width:120px; height:120px; border-radius:50%; background:var(--bg3); border:3px solid var(--bord2); display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; user-select:none; font-family:var(--disp); font-size:16px; font-weight:700; letter-spacing:2px; color:var(--text2); flex-shrink:0; }
+  #ptt-btn:hover { border-color:var(--accent); color:var(--accent); }
+  #ptt-btn.active { background:rgba(0,255,136,0.1); border-color:var(--green); color:var(--green); box-shadow:0 0 30px rgba(0,255,136,0.2); transform:scale(0.97); }
+  #ptt-btn.no-voice { border-color:rgba(255,170,0,0.4); color:var(--amber); }
+  #ptt-btn .ptt-icon { font-size:32px; margin-bottom:6px; }
+  .ptt-keybind { font-family:var(--mono); font-size:9px; color:var(--text3); letter-spacing:2px; text-align:center; }
+
+  .users-section { width:100%; }
+  .users-section-label { font-family:var(--mono); font-size:9px; letter-spacing:2px; color:var(--text3); text-transform:uppercase; margin-bottom:8px; }
+  .user-pill { display:flex; align-items:center; gap:6px; padding:5px 0; font-size:12px; color:var(--text2); border-bottom:1px solid var(--border); }
+  .user-pill:last-child { border-bottom:none; }
+  .user-pill .u-dot { width:6px; height:6px; border-radius:50%; background:var(--text3); flex-shrink:0; }
+  .user-pill .u-dot.talking { background:var(--green); box-shadow:0 0 6px var(--green); }
+  .captain-controls { width:100%; display:flex; flex-direction:column; gap:8px; }
+  .captain-controls-label { font-family:var(--mono); font-size:9px; letter-spacing:2px; color:var(--text3); text-transform:uppercase; margin-bottom:4px; }
+  .ctrl-btn { font-family:var(--mono); font-size:9px; letter-spacing:1px; text-transform:uppercase; padding:7px 10px; border:1px solid var(--bord2); background:var(--bg3); color:var(--text2); cursor:pointer; width:100%; transition:all 0.15s; text-align:left; }
+  .ctrl-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .ctrl-btn.alarm { border-color:rgba(255,51,85,0.3); color:var(--red); }
+  .ctrl-btn.alarm:hover { background:rgba(255,51,85,0.1); border-color:var(--red); }
+  .ctrl-btn.scramble { border-color:rgba(255,170,0,0.3); color:var(--amber); }
+  .ctrl-btn.scramble:hover { background:rgba(255,170,0,0.07); border-color:var(--amber); }
+
+  /* ── ALARMS ── */
+  .alarm-overlay { position:fixed; inset:0; z-index:500; pointer-events:none; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0; transition:opacity 0.3s; }
+  .alarm-overlay.active { opacity:1; pointer-events:all; }
+  .alarm-overlay.all-hands { background:rgba(255,51,85,0.08); }
+  .alarm-overlay.scramble { background:rgba(255,170,0,0.08); }
+  .alarm-banner { font-family:var(--disp); font-weight:900; letter-spacing:8px; text-transform:uppercase; text-align:center; padding:24px 48px; border:3px solid; }
+  .all-hands .alarm-banner { font-size:52px; color:var(--red); border-color:var(--red); background:rgba(8,11,14,0.95); text-shadow:0 0 40px rgba(255,51,85,0.5); }
+  .scramble .alarm-banner { font-size:52px; color:var(--amber); border-color:var(--amber); background:rgba(8,11,14,0.95); text-shadow:0 0 40px rgba(255,170,0,0.5); }
+  .alarm-sub { font-family:var(--mono); font-size:13px; letter-spacing:3px; margin-top:12px; opacity:0.7; }
+  .alarm-dismiss { margin-top:20px; font-family:var(--mono); font-size:11px; letter-spacing:2px; text-transform:uppercase; padding:8px 20px; background:transparent; border:1px solid; cursor:pointer; transition:all 0.15s; }
+  .all-hands .alarm-dismiss { color:var(--red); border-color:var(--red); }
+  .all-hands .alarm-dismiss:hover { background:rgba(255,51,85,0.1); }
+  .scramble .alarm-dismiss { color:var(--amber); border-color:var(--amber); }
+  .scramble .alarm-dismiss:hover { background:rgba(255,170,0,0.07); }
+  @keyframes borderFlash { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .alarm-overlay.active .alarm-banner { animation:borderFlash 1s infinite; }
+
+  /* ── TOAST ── */
+  #toast { position:fixed; bottom:16px; right:16px; z-index:400; font-family:var(--mono); font-size:11px; letter-spacing:1px; padding:8px 16px; background:var(--bg3); border-left:3px solid var(--accent); color:var(--text); transform:translateY(16px); opacity:0; transition:all 0.3s; pointer-events:none; max-width:320px; }
+  #toast.visible { transform:translateY(0); opacity:1; }
+  #toast.error { border-left-color:var(--red); }
+  #toast.success { border-left-color:var(--green); }
+
+  .no-channel { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--text3); font-family:var(--mono); font-size:12px; letter-spacing:2px; text-align:center; }
+  .no-channel-icon { font-size:48px; opacity:0.2; margin-bottom:16px; }
+
+  .role-dev   { color:#ff4444; border-color:#ff444440; }
+  .role-owner { color:#ff8800; border-color:#ff880040; }
+  .role-admin { color:#ffcc00; border-color:#ffcc0040; }
+  .role-capt  { color:#44aaff; border-color:#44aaff40; }
+  .role-air   { color:#44ffaa; border-color:#44ffaa40; }
+  .role-crew  { color:#aaaaaa; border-color:#aaaaaa40; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .pulse { animation:pulse 2s infinite; }
+</style>
+</head>
+<body>
+
+<!-- ══ CONNECT SCREEN ══ -->
+<div id="screen-connect" class="screen active">
+  <div class="connect-logo">COG-FICS</div>
+  <div class="connect-tagline">Fleet Information &amp; Communications System</div>
+  <div class="connect-box">
+    <h2>Connect to Shard</h2>
+    <div id="saved-servers-wrap" style="display:none; margin-bottom:16px;">
+      <div class="saved-servers-label">Recent Servers</div>
+      <div id="saved-servers-list"></div>
+    </div>
+    <div class="field-row">
+      <label class="field-label" for="f-host">Shard Host</label>
+      <input class="field-input" id="f-host" placeholder="192.168.1.100" type="text">
+    </div>
+    <div class="field-row">
+      <label class="field-label" for="f-port">Port</label>
+      <input class="field-input" id="f-port" placeholder="3001" type="number" value="3001">
+    </div>
+    <div class="field-row" id="shard-pass-row" style="display:none">
+      <label class="field-label" for="f-shard-pass">Shard Access Code</label>
+      <input class="field-input" id="f-shard-pass" placeholder="Access code" type="password">
+    </div>
+    <div class="field-row">
+      <label class="field-label" for="f-user">Username</label>
+      <input class="field-input" id="f-user" placeholder="callsign" type="text">
+    </div>
+    <div class="field-row">
+      <label class="field-label" for="f-userpass">Password</label>
+      <input class="field-input" id="f-userpass" placeholder="Password" type="password">
+    </div>
+    <button class="connect-btn" id="connect-btn" onclick="doConnect()">CONNECT</button>
+    <div class="connect-error" id="connect-error"></div>
+  </div>
+  <div style="margin-top:24px; font-family:var(--mono); font-size:9px; color:var(--text3); letter-spacing:2px;">COG-FICS CLIENT v2.0</div>
+</div>
+
+<!-- ══ COMMS SCREEN ══ -->
+<div id="screen-comms" class="screen">
+  <div id="titlebar">
+    <div class="tb-brand">COG-FICS</div>
+    <div class="tb-shard" id="tb-shard">—</div>
+    <span id="tb-role-badge" class="chat-role-badge" style="font-size:9px;padding:2px 8px;margin-right:8px;"></span>
+    <button class="disconnect-btn" onclick="doDisconnect()">DISCONNECT</button>
+    <div class="tb-controls">
+      <div class="tb-btn" onclick="window.cogfics.minimize()">─</div>
+      <div class="tb-btn" onclick="window.cogfics.maximize()">□</div>
+      <div class="tb-btn close" onclick="window.cogfics.close()">✕</div>
+    </div>
+  </div>
+
+  <div id="comms-body">
+    <div id="fleet-sidebar">
+      <div class="fleet-sidebar-section">
+        <div class="fleet-sidebar-label">Location</div>
+        <div class="lobby-item active" id="lobby-nav" onclick="joinLobby()">◈ Lobby</div>
+      </div>
+      <div class="fleet-sidebar-section" style="flex:1">
+        <div class="fleet-sidebar-label">Fleets &amp; Nets</div>
+        <div id="fleet-nav-list"></div>
+      </div>
+    </div>
+
+    <div id="comms-main">
+      <!-- Voice status bar -->
+      <div id="voice-status-bar">
+        <div class="voice-dot" id="voice-dot"></div>
+        <span id="voice-status-text">VOICE — NOT IN NET</span>
+        <div style="flex:1"></div>
+        <span id="voice-room-label" style="color:var(--text3); font-size:9px;"></span>
+      </div>
+
+      <div class="no-channel" id="no-channel-state">
+        <div class="no-channel-icon">◫</div>
+        <div>SELECT A NET TO BEGIN</div>
+      </div>
+
+      <div id="channel-view" style="display:none; flex-direction:column; height:calc(100% - 33px);">
+        <div class="comms-header">
+          <div>
+            <div class="comms-channel-name" id="ch-name">—</div>
+            <div class="comms-channel-status" id="ch-status">—</div>
+          </div>
+          <div style="flex:1"></div>
+          <div id="ch-captain-btns" style="display:flex; gap:8px;"></div>
+        </div>
+
+        <div class="ptt-indicator" id="ptt-active-bar" style="display:none">
+          <div class="ptt-dot active"></div>
+          <span id="ptt-active-who">—</span> IS TRANSMITTING
+        </div>
+
+        <div id="chat-log"></div>
+
+        <div class="chat-input-row">
+          <input class="chat-input" id="chat-input" placeholder="Type a message…" type="text" onkeydown="chatKeydown(event)">
+          <button class="chat-send-btn" onclick="sendChat()">SEND</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="ptt-panel">
+      <div id="ptt-btn" onmousedown="pttStart()" onmouseup="pttStop()" onmouseleave="pttStop()">
+        <div class="ptt-icon">🎙</div>
+        PTT
+      </div>
+      <div class="ptt-keybind">HOLD SPACE</div>
+
+      <div class="users-section" style="margin-top:8px;">
+        <div class="users-section-label">On Net</div>
+        <div id="net-users-list"><div style="font-family:var(--mono);font-size:11px;color:var(--text3)">—</div></div>
+      </div>
+
+      <div class="captain-controls" id="captain-controls" style="display:none;">
+        <div class="captain-controls-label">Command</div>
+        <button class="ctrl-btn alarm" onclick="sendAllHands()">⚡ ALL HANDS KLAXON</button>
+        <button class="ctrl-btn scramble" onclick="sendScramble()">⚠ SCRAMBLE ALARM</button>
+        <button class="ctrl-btn" onclick="promptBroadcast()">📡 GLOBAL BROADCAST</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ALARMS ══ -->
+<div class="alarm-overlay all-hands" id="alarm-all-hands">
+  <div class="alarm-banner">ALL HANDS</div>
+  <div class="alarm-sub" style="color:var(--red)">ATTENTION ON DECK — REPORT TO STATIONS</div>
+  <button class="alarm-dismiss" onclick="dismissAlarm('alarm-all-hands')">ACKNOWLEDGE</button>
+</div>
+<div class="alarm-overlay scramble" id="alarm-scramble">
+  <div class="alarm-banner">SCRAMBLE</div>
+  <div class="alarm-sub" style="color:var(--amber)">ALL PERSONNEL — IMMEDIATE ACTION REQUIRED</div>
+  <button class="alarm-dismiss" onclick="dismissAlarm('alarm-scramble')">ACKNOWLEDGE</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let ws = null;
+let myUsername = '';
+let myRole = '';
+let shardInfo = {};
+let fleets = {};
+let activeFleetId = null;
+let activeNetId = null;
+let isPtt = false;
+let channelUsers = new Map();
+let settings = {};
+
+// LiveKit state
+let livekitRoom = null;
+let livekitToken = null;
+let livekitHost = null;
+let localAudioTrack = null;
+let currentLivekitRoomName = null;
+
+const ROLE_RANK  = { developer:0, shard_owner:1, administrator:2, captain:3, airboss:4, crew:5 };
+const ROLE_CSS   = { developer:'role-dev', shard_owner:'role-owner', administrator:'role-admin', captain:'role-capt', airboss:'role-air', crew:'role-crew' };
+const ROLE_LABELS= { developer:'DEV', shard_owner:'OWNER', administrator:'ADMIN', captain:'CAPT', airboss:'AIR', crew:'CREW' };
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  settings = await window.cogfics.loadSettings() || {};
+  loadSavedServers();
+  ['f-host','f-port','f-user','f-userpass','f-shard-pass'].forEach(id => {
+    document.getElementById(id)?.addEventListener('keydown', e => { if(e.key==='Enter') doConnect(); });
+  });
+  window.addEventListener('keydown', e => { if(e.code==='Space' && e.target.tagName!=='INPUT' && !isPtt) pttStart(); });
+  window.addEventListener('keyup',   e => { if(e.code==='Space') pttStop(); });
+});
+
+// ── Saved servers ─────────────────────────────────────────────────────────────
+function loadSavedServers() {
+  const servers = settings.recentServers || [];
+  const wrap = document.getElementById('saved-servers-wrap');
+  const list = document.getElementById('saved-servers-list');
+  if (!servers.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  list.innerHTML = servers.slice(0,5).map(s =>
+    `<div class="server-chip" onclick="fillServer('${esc(s.host)}','${s.port}')">${esc(s.host)}:${s.port}</div>`
+  ).join('');
+}
+function fillServer(host, port) {
+  document.getElementById('f-host').value = host;
+  document.getElementById('f-port').value = port;
+}
+function saveRecentServer(host, port) {
+  const servers = settings.recentServers || [];
+  const key = host + ':' + port;
+  const filtered = servers.filter(s => s.host + ':' + s.port !== key);
+  filtered.unshift({ host, port });
+  settings.recentServers = filtered.slice(0, 5);
+  window.cogfics.saveSettings(settings);
+}
+
+// ── Connect ───────────────────────────────────────────────────────────────────
+async function doConnect() {
+  const host      = document.getElementById('f-host').value.trim();
+  const port      = document.getElementById('f-port').value.trim() || '3001';
+  const username  = document.getElementById('f-user').value.trim();
+  const password  = document.getElementById('f-userpass').value;
+  const shardPass = document.getElementById('f-shard-pass').value;
+  if (!host || !username || !password) { setConnectError('Fill in all required fields'); return; }
+  setConnectError('');
+  const btn = document.getElementById('connect-btn');
+  btn.disabled = true; btn.textContent = 'CONNECTING…';
+  try {
+    const infoRes = await fetch(`http://${host}:${port}/api/info`);
+    if (!infoRes.ok) throw new Error('Cannot reach shard');
+    shardInfo = await infoRes.json();
+    if (shardInfo.passwordRequired && !shardPass) {
+      document.getElementById('shard-pass-row').style.display = '';
+      setConnectError('This shard requires an access code');
+      btn.disabled = false; btn.textContent = 'CONNECT'; return;
+    }
+    const loginRes = await fetch(`http://${host}:${port}/api/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, shardPassword: shardPass })
+    });
+    const loginData = await loginRes.json();
+    if (!loginRes.ok) throw new Error(loginData.error || 'Login failed');
+    myUsername   = loginData.username;
+    myRole       = loginData.role;
+    livekitToken = loginData.livekitToken;
+    livekitHost  = loginData.livekitHost;
+
+    ws = new WebSocket(`ws://${host}:${port}/ws?token=${loginData.token}`);
+    ws.onopen = () => { saveRecentServer(host, port); enterCommsScreen(); btn.disabled = false; btn.textContent = 'CONNECT'; };
+    ws.onmessage = e => { try { handleServerMsg(JSON.parse(e.data)); } catch {} };
+    ws.onclose = e => {
+      if (e.code === 4001) setConnectError('Unauthorized');
+      else { toast('Disconnected from shard', 'error'); doDisconnect(); }
+    };
+    ws.onerror = () => { setConnectError('Connection error'); btn.disabled = false; btn.textContent = 'CONNECT'; };
+  } catch (err) {
+    setConnectError(err.message || 'Connection failed');
+    btn.disabled = false; btn.textContent = 'CONNECT';
+  }
+}
+function setConnectError(msg) { document.getElementById('connect-error').textContent = msg; }
+
+// ── LiveKit ───────────────────────────────────────────────────────────────────
+function setVoiceStatus(status, label, room) {
+  const dot = document.getElementById('voice-dot');
+  const txt = document.getElementById('voice-status-text');
+  const roomLabel = document.getElementById('voice-room-label');
+  dot.className = 'voice-dot ' + status;
+  txt.textContent = label;
+  roomLabel.textContent = room || '';
+}
+
+async function joinLiveKitRoom(roomName) {
+  // Leave existing room first
+  if (livekitRoom) {
+    try { await livekitRoom.disconnect(); } catch {}
+    livekitRoom = null;
+    localAudioTrack = null;
+  }
+  if (!livekitToken || !livekitHost) {
+    setVoiceStatus('error', 'VOICE — NO TOKEN', '');
+    return;
+  }
+
+  setVoiceStatus('connecting', 'VOICE — CONNECTING…', roomName);
+
+  try {
+    const room = new LivekitClient.Room({
+      adaptiveStream: true,
+      dynacast: true,
+      audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    });
+
+    room.on(LivekitClient.RoomEvent.ParticipantConnected, p => {
+      appendSystemMsg(`${p.identity} joined voice`);
+    });
+    room.on(LivekitClient.RoomEvent.ParticipantDisconnected, p => {
+      appendSystemMsg(`${p.identity} left voice`);
+      setUserTalking(p.identity, false);
+    });
+    room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, pub, participant) => {
+      if (track.kind === LivekitClient.Track.Kind.Audio) {
+        const audioEl = track.attach();
+        audioEl.autoplay = true;
+        document.body.appendChild(audioEl);
+      }
+    });
+    room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track) => {
+      track.detach().forEach(el => el.remove());
+    });
+    room.on(LivekitClient.RoomEvent.ActiveSpeakersChanged, speakers => {
+      // Clear all talking states
+      for (const [u] of channelUsers) setUserTalking(u, false, true);
+      // Set active speakers
+      speakers.forEach(p => { if (p.identity !== myUsername) setUserTalking(p.identity, true, true); });
+      renderNetUsers();
+    });
+    room.on(LivekitClient.RoomEvent.Disconnected, () => {
+      setVoiceStatus('', 'VOICE — DISCONNECTED', '');
+    });
+
+    await room.connect(livekitHost, livekitToken);
+
+    livekitRoom = room;
+
+    // Create and publish local audio track as muted immediately
+    localAudioTrack = await LivekitClient.createLocalAudioTrack({
+      echoCancellation: true, noiseSuppression: true, autoGainControl: true
+    });
+    await livekitRoom.localParticipant.publishTrack(localAudioTrack, { muted: true });
+    currentLivekitRoomName = roomName;
+    setVoiceStatus('connected', 'VOICE — CONNECTED', roomName);
+    appendSystemMsg('Voice connected to ' + roomName);
+
+  } catch (err) {
+    setVoiceStatus('error', 'VOICE — ERROR', '');
+    appendSystemMsg('Voice connection failed: ' + err.message);
+    console.error('[LIVEKIT]', err);
+  }
+}
+
+async function liveKitPublish() {
+  if (!localAudioTrack) return;
+  try { await localAudioTrack.unmute(); } catch {}
+}
+async function liveKitUnpublish() {
+  if (!localAudioTrack) return;
+  try { await localAudioTrack.mute(); } catch {}
+}
+
+// ── Server messages ───────────────────────────────────────────────────────────
+function handleServerMsg({ type, payload }) {
+  switch (type) {
+    case 'init':
+      fleets = payload.fleets || {};
+      renderFleetNav();
+      renderCaptainControls();
+      break;
+    case 'fleets-updated':
+      fleets = payload; renderFleetNav(); break;
+    case 'fleet-joined':
+      activeFleetId = payload.fleetId; activeNetId = null;
+      renderFleetNav(); showNoChannel(); break;
+    case 'net-joined':
+      activeNetId = payload.netId;
+      renderFleetNav(); showChannel();
+      channelUsers.clear(); renderNetUsers();
+      // Join LiveKit room for this net
+      if (payload.livekitRoom) joinLiveKitRoom(payload.livekitRoom);
+      break;
+    case 'ptt-active':
+      if (payload.fleetId === activeFleetId && payload.netId === activeNetId) {
+        showPttBar(payload.username); setUserTalking(payload.username, true);
+      }
+      break;
+    case 'ptt-inactive':
+      hidePttBar(); setUserTalking(payload.username, false); break;
+    case 'text-message':
+      appendChatMsg(payload.username, payload.role, payload.text, payload.ts); break;
+    case 'user-joined':
+      appendSystemMsg(`${payload.username} connected`); break;
+    case 'user-left':
+      appendSystemMsg(`${payload.username} disconnected`);
+      channelUsers.delete(payload.username); renderNetUsers(); break;
+    case 'net-unlocked':
+      if (payload.fleetId === activeFleetId && fleets[payload.fleetId]?.nets?.[payload.netId]) {
+        fleets[payload.fleetId].nets[payload.netId].locked = false;
+        renderFleetNav(); appendSystemMsg('Net unlocked');
+      }
+      break;
+    case 'net-locked':
+      if (payload.fleetId === activeFleetId && fleets[payload.fleetId]?.nets?.[payload.netId]) {
+        fleets[payload.fleetId].nets[payload.netId].locked = true;
+        renderFleetNav(); appendSystemMsg('Net locked');
+      }
+      break;
+    case 'all-hands-klaxon':
+      triggerAlarm('alarm-all-hands'); playKlaxon(); break;
+    case 'scramble-alarm':
+      triggerAlarm('alarm-scramble'); playScramble(); break;
+    case 'global-broadcast':
+      appendSystemMsg(`[GLOBAL BROADCAST from ${payload.username}]: ${payload.text}`);
+      toast('GLOBAL BROADCAST: ' + payload.text, 'error'); break;
+    case 'error':
+      toast(payload, 'error'); break;
+  }
+}
+
+// ── Screens ───────────────────────────────────────────────────────────────────
+function enterCommsScreen() {
+  document.getElementById('screen-connect').classList.remove('active');
+  const comms = document.getElementById('screen-comms');
+  comms.classList.add('active'); comms.style.display = 'flex';
+  document.getElementById('tb-shard').textContent = shardInfo.name + ' — ' + myUsername;
+  const roleBadge = document.getElementById('tb-role-badge');
+  roleBadge.textContent = ROLE_LABELS[myRole] || myRole.toUpperCase();
+  roleBadge.className = 'chat-role-badge ' + (ROLE_CSS[myRole] || '');
+  renderFleetNav(); renderCaptainControls();
+  setVoiceStatus('', 'VOICE — NOT IN NET', '');
+}
+
+async function doDisconnect() {
+  if (livekitRoom) { try { await livekitRoom.disconnect(); } catch {} livekitRoom = null; }
+  if (ws) { try { ws.close(); } catch {} ws = null; }
+  activeFleetId = null; activeNetId = null; channelUsers.clear();
+  const comms = document.getElementById('screen-comms');
+  comms.classList.remove('active'); comms.style.display = 'none';
+  document.getElementById('screen-connect').classList.add('active');
+  document.getElementById('chat-log').innerHTML = '';
+}
+
+// ── Fleet/Net nav ─────────────────────────────────────────────────────────────
+function renderFleetNav() {
+  const el = document.getElementById('fleet-nav-list');
+  const fkeys = Object.keys(fleets);
+  el.innerHTML = fkeys.map(fid => {
+    const f = fleets[fid];
+    const nets = f.nets || {};
+    const nkeys = Object.keys(nets);
+    return `<div>
+      <div class="fleet-item ${activeFleetId===fid && !activeNetId ? 'active' : ''}" onclick="joinFleet('${fid}')">
+        <span>⬡</span><span>${esc(f.name)}</span>
+      </div>
+      ${activeFleetId===fid ? nkeys.map(nid => {
+        const n = nets[nid];
+        return `<div class="net-item ${activeNetId===nid ? 'active' : ''}" onclick="joinNet('${nid}')">
+          <span class="net-lock">${n.locked ? '🔒' : '🔓'}</span><span>${esc(n.name)}</span>
+        </div>`;
+      }).join('') : ''}
+    </div>`;
+  }).join('') || '<div style="padding:8px 14px;font-family:var(--mono);font-size:11px;color:var(--text3)">No fleets</div>';
+}
+
+function joinFleet(fid) { ws?.send(JSON.stringify({ type: 'join-fleet', payload: { fleetId: fid } })); }
+function joinNet(nid)   { ws?.send(JSON.stringify({ type: 'join-net',   payload: { netId: nid } })); }
+function joinLobby() {
+  activeFleetId = null; activeNetId = null;
+  showNoChannel();
+  document.getElementById('lobby-nav').classList.add('active');
+  renderFleetNav();
+  setVoiceStatus('', 'VOICE — NOT IN NET', '');
+}
+function showNoChannel() {
+  document.getElementById('no-channel-state').style.display = 'flex';
+  document.getElementById('channel-view').style.display = 'none';
+}
+function showChannel() {
+  document.getElementById('no-channel-state').style.display = 'none';
+  const cv = document.getElementById('channel-view');
+  cv.style.display = 'flex';
+  const fleet = fleets[activeFleetId];
+  const net = fleet?.nets?.[activeNetId];
+  document.getElementById('ch-name').textContent = (fleet?.name || '—') + ' · ' + (net?.name || '—');
+  document.getElementById('ch-status').textContent = net?.locked ? 'LOCKED' : 'OPEN';
+  document.getElementById('lobby-nav').classList.remove('active');
+  const cpBtns = document.getElementById('ch-captain-btns');
+  if ((ROLE_RANK[myRole] ?? 99) <= 3) {
+    cpBtns.style.display = 'flex';
+    cpBtns.innerHTML = '';
+    const lockBtn = document.createElement('button');
+    lockBtn.style.cssText = 'font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:5px 10px;border:1px solid rgba(255,51,85,0.3);background:transparent;color:var(--red);cursor:pointer;';
+    lockBtn.textContent = net?.locked ? '🔓 UNLOCK NET' : '🔒 LOCK NET';
+    lockBtn.onclick = () => net?.locked ? unlockNet() : lockNet();
+    cpBtns.appendChild(lockBtn);
+  } else { cpBtns.style.display = 'none'; }
+}
+
+// ── PTT ───────────────────────────────────────────────────────────────────────
+async function pttStart() {
+  if (!activeNetId || !ws) return;
+  isPtt = true;
+  document.getElementById('ptt-btn').classList.add('active');
+  ws.send(JSON.stringify({ type: 'ptt-start' }));
+  await liveKitPublish();
+}
+async function pttStop() {
+  if (!isPtt) return;
+  isPtt = false;
+  document.getElementById('ptt-btn').classList.remove('active');
+  ws?.send(JSON.stringify({ type: 'ptt-stop' }));
+  await liveKitUnpublish();
+}
+
+function showPttBar(who) {
+  document.getElementById('ptt-active-bar').style.display = 'flex';
+  document.getElementById('ptt-active-who').textContent = who.toUpperCase();
+}
+function hidePttBar() { document.getElementById('ptt-active-bar').style.display = 'none'; }
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+function chatKeydown(e) { if (e.key === 'Enter') sendChat(); }
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || !activeNetId || !ws) return;
+  ws.send(JSON.stringify({ type: 'text-message', payload: { text } }));
+  input.value = '';
+}
+function appendChatMsg(username, role, text, ts) {
+  const log = document.getElementById('chat-log');
+  const roleClass = ROLE_CSS[role] || 'role-crew';
+  const roleLabel = ROLE_LABELS[role] || role.toUpperCase();
+  const time = ts ? new Date(ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  div.innerHTML = `<span class="chat-ts">${time}</span><span class="chat-role-badge ${roleClass}">${roleLabel}</span><span class="chat-user">${esc(username)}</span><span class="chat-text">${esc(text)}</span>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  if (!channelUsers.has(username)) { channelUsers.set(username, { role, talking: false }); renderNetUsers(); }
+}
+function appendSystemMsg(text) {
+  const log = document.getElementById('chat-log');
+  const div = document.createElement('div');
+  div.className = 'chat-system';
+  div.textContent = '— ' + text + ' —';
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ── Net Users ─────────────────────────────────────────────────────────────────
+function setUserTalking(username, talking, skipRender) {
+  const u = channelUsers.get(username);
+  if (u) { u.talking = talking; if (!skipRender) renderNetUsers(); }
+}
+function renderNetUsers() {
+  const el = document.getElementById('net-users-list');
+  if (!channelUsers.size) { el.innerHTML = '<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">—</div>'; return; }
+  el.innerHTML = [...channelUsers.entries()].map(([uname, info]) =>
+    `<div class="user-pill"><div class="u-dot ${info.talking ? 'talking pulse' : ''}"></div><span>${esc(uname)}</span></div>`
+  ).join('');
+}
+
+// ── Captain Controls ──────────────────────────────────────────────────────────
+function renderCaptainControls() {
+  document.getElementById('captain-controls').style.display = (ROLE_RANK[myRole] ?? 99) <= 3 ? '' : 'none';
+}
+function sendAllHands() { ws?.send(JSON.stringify({ type: 'all-hands-klaxon' })); }
+function sendScramble()  { ws?.send(JSON.stringify({ type: 'scramble-alarm' })); }
+function promptBroadcast() {
+  const text = prompt('Global broadcast message:');
+  if (text?.trim()) ws?.send(JSON.stringify({ type: 'global-broadcast', payload: { text } }));
+}
+function unlockNet() { ws?.send(JSON.stringify({ type: 'unlock-net', payload: { netId: activeNetId } })); }
+function lockNet()   { ws?.send(JSON.stringify({ type: 'lock-net',   payload: { netId: activeNetId } })); }
+
+// ── Alarms ────────────────────────────────────────────────────────────────────
+function triggerAlarm(id) { document.getElementById(id).classList.add('active'); }
+function dismissAlarm(id) { document.getElementById(id).classList.remove('active'); }
+
+// ── Web Audio ─────────────────────────────────────────────────────────────────
+function getAudioCtx() {
+  if (!window._actx) window._actx = new (window.AudioContext || window.webkitAudioContext)();
+  return window._actx;
+}
+function playKlaxon() {
+  const ctx = getAudioCtx();
+  const freqs = [440, 370, 440, 370, 440];
+  let t = ctx.currentTime;
+  freqs.forEach(f => {
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(f, t);
+    gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    osc.start(t); osc.stop(t + 0.25); t += 0.28;
+  });
+}
+function playScramble() {
+  const ctx = getAudioCtx();
+  const osc = ctx.createOscillator(); const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(880, ctx.currentTime);
+  osc.frequency.setValueAtTime(660, ctx.currentTime + 0.15);
+  osc.frequency.setValueAtTime(880, ctx.currentTime + 0.30);
+  osc.frequency.setValueAtTime(660, ctx.currentTime + 0.45);
+  gain.gain.setValueAtTime(0.2, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+  osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.7);
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+let toastTimer;
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'visible' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.className = '', 3500);
+}
+</script>
+</body>
+</html>
